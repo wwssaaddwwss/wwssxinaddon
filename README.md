@@ -4,6 +4,8 @@
 
 WaveXinAddon 是一个为 **2b2t.xin** 服务器设计的 Meteor Client Addon（彗星端扩展），主要提供鞘翅飞行与路径导航、Litematica 半自动投影打印、登录与签到自动化、基地与末地折跃门扫描、容器记录、聊天过滤、实体名牌和可选战斗辅助等功能。
 
+wwssaaddwwss 修改鞘翅飛行
+
 <p align="center">
   <img src="assets/wavexin_readme_preview.png" alt="WaveXinAddon Preview" width="850">
 </p>
