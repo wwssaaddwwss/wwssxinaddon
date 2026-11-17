@@ -1,4 +1,4 @@
-# WaveXinAddon
+# WaveXinAddon wwssaaddwwss edition
 
 **Language / 语言:** [中文](README.md) | English
 
