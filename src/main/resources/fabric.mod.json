@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
-  "id": "wave-xin-addon",
+  "id": "wwss-wave-xin-addon",
   "version": "${version}",
-  "name": "WaveXinAddon",
+  "name": "wwssWaveXinAddon",
   "description": "Meteor Addon for 2b2t.xin.",
   "license": "GPL-3.0-only",
   "contact": {
@@ -11,7 +11,8 @@
     "sources": "https://github.com/WaltomAdaam2/WaveXinAddon"
   },
   "authors": [
-    "WaltomAdaam"
+    "WaltomAdaam",
+    "wwssaaddwwss"
   ],
   "icon": "assets/wavexin/icon.png",
   "environment": "client",

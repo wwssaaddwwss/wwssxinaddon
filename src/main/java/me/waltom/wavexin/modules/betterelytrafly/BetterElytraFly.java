@@ -40,11 +40,19 @@ public class BetterElytraFly extends WaveXinModule {
     private final SettingGroup sgGeneral = settings.getDefaultGroup();
     private final SettingGroup sgSpeedAcceleration = settings.createGroup("Speed Acceleration");
     private final SettingGroup sgElytraReplace = settings.createGroup("Elytra Replace");
+    private boolean obstacleAhead;
+    private static final int OBSTACLE_CHECK_RANGE = 10;
 
     public final Setting<Boolean> autoStop = sgGeneral.add(new BoolSetting.Builder()
         .name("Stop in Unloaded Chunks")
         .description("Stops flight movement when the current chunk is unloaded")
         .defaultValue(true)
+        .build()
+    );
+    public final Setting<Boolean> stopOnObstacle = sgGeneral.add(new BoolSetting.Builder()
+        .name("Stop on Obstacle")
+        .description("Stops horizontal flight movement when a block is detected ahead")
+        .defaultValue(false)
         .build()
     );
 

@@ -42,7 +42,7 @@ public class ElytraFlyPath extends WaveXinModule {
 
 
 
-    
+
     private final SettingGroup sgTarget = settings.createGroup("Target Coordinates");
     private final SettingGroup sgFlight = settings.createGroup("Flight Settings");
     private final SettingGroup sgSpeedAcceleration = settings.createGroup("Speed Acceleration");
@@ -53,8 +53,8 @@ public class ElytraFlyPath extends WaveXinModule {
     private XaeroWaypointBridge.WaypointHandle temporaryWaypoint;
     private boolean normalizingMaxSpeed;
 
-    
-    
+
+
     public final Setting<Integer> globalX = sgTarget.add(new TargetCoordinateSetting.Builder()
         .name("Target X")
         .description("Target X")
@@ -66,7 +66,7 @@ public class ElytraFlyPath extends WaveXinModule {
         .build()
     );
 
-    
+
     public final Setting<Integer> globalZ = sgTarget.add(new TargetCoordinateSetting.Builder()
         .name("Target Z")
         .description("Target Z")
@@ -78,8 +78,8 @@ public class ElytraFlyPath extends WaveXinModule {
         .build()
     );
 
-    
-    
+
+
     public final Setting<Boolean> autoStop = sgFlight.add(new BoolSetting.Builder()
         .name("Stop in Unloaded Chunks")
         .description("Stops flight movement when the current chunk is unloaded")
@@ -94,7 +94,7 @@ public class ElytraFlyPath extends WaveXinModule {
         .build()
     );
 
-    
+
     public final Setting<Double> speed = sgFlight.add(new DoubleSetting.Builder()
         .name("Flight Speed")
         .description("Horizontal flight speed before acceleration")
@@ -163,7 +163,7 @@ public class ElytraFlyPath extends WaveXinModule {
         .build()
     );
 
-    
+
     public final Setting<Boolean> autoQuitServer = sgFlight.add(new BoolSetting.Builder()
         .name("Auto Disconnect on Arrival")
         .description("Disconnects after arriving at the target")
@@ -185,9 +185,9 @@ public class ElytraFlyPath extends WaveXinModule {
         .build()
     );
 
-    
-    
-    
+
+
+
     public final Setting<Double> arrivalDistance2D = sgFlight.add(new DoubleSetting.Builder()
         .name("Arrival Distance")
         .description("Distance from the target required to count as arrived")
@@ -200,9 +200,9 @@ public class ElytraFlyPath extends WaveXinModule {
     );
 
 
-    
 
-    
+
+
 
 
     public ElytraFlyPath() {
@@ -215,7 +215,7 @@ public class ElytraFlyPath extends WaveXinModule {
         else if (!enabled) debugLog.close();
     }
 
-    
+
 
 
 
@@ -229,7 +229,7 @@ public class ElytraFlyPath extends WaveXinModule {
             return;
         }
         activationRejected = false;
-        
+
         if (mc.player == null || mc.world == null || !hasWorkingElytra()) {
             toggle();
             return;
@@ -238,7 +238,7 @@ public class ElytraFlyPath extends WaveXinModule {
         suppressMovementInput();
         speedRamp.reset();
 
-        
+
         if (!isSafeFlightHeight()) {
             warningKey("error.wavexin.safe_flight_height", "Recommended to use above each dimension height limit: Nether (Y > 128), Overworld (Y > 320), End (Y > 256)");
         }
@@ -253,11 +253,11 @@ public class ElytraFlyPath extends WaveXinModule {
 
         createTemporaryWaypoint();
 
-        
+
         infoKey("message.wavexin.elytra_fly_path.started", "Started pathing to X=%d, Z=%d", getTargetX(), getTargetZ());
     }
 
-    
+
 
 
 
@@ -272,8 +272,9 @@ public class ElytraFlyPath extends WaveXinModule {
         removeTemporaryWaypoint();
         isArrive = false;
         speedRamp.reset();
+        obstacleAhead = false;
 
-        
+
         if (mc.player != null) {
             if (!mc.player.isCreative()) mc.player.getAbilities().allowFlying = false;
             mc.player.getAbilities().flying = false;
@@ -281,7 +282,7 @@ public class ElytraFlyPath extends WaveXinModule {
         restoreMovementInput();
     }
 
-    
+
 
 
 
@@ -289,17 +290,17 @@ public class ElytraFlyPath extends WaveXinModule {
     public void handleWavePlayerMove(MoveEvent event) {
         if (mc.player == null || mc.world == null) return;
 
-        
+
         if (mc.player.isGliding()) {
-            
-            
+
+
             ChunkPos chunkPos = mc.player.getChunkPos();
 
-            
+
             if (autoStop.get()) {
-                
+
                 if (!mc.world.getChunkManager().isChunkLoaded(chunkPos.x, chunkPos.z)) {
-                    
+
                     event.setX(0);
                     event.setY(0);
                     event.setZ(0);
@@ -312,7 +313,7 @@ public class ElytraFlyPath extends WaveXinModule {
 
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onTick(TickEvent.Pre event) {
-        
+
         if (mc.player == null || mc.world == null || mc.getNetworkHandler() == null) return;
 
         suppressMovementInput();
@@ -322,12 +323,16 @@ public class ElytraFlyPath extends WaveXinModule {
             return;
         }
 
-        
+
         if (autoTakeoff.get() && !mc.player.isGliding()) {
             requestElytraGlide(mc.player);
         }
 
-        speedRamp.tick(mc.player.isGliding() && hasWorkingElytra());
+        boolean isGliding = mc.player.isGliding() && hasWorkingElytra();
+
+        speedRamp.tick(isGliding);
+
+        obstacleAhead = isGliding && hasObstacleAhead(OBSTACLE_CHECK_RANGE);
     }
 
     @EventHandler
@@ -346,28 +351,66 @@ public class ElytraFlyPath extends WaveXinModule {
     }
 
 
-    
 
+//    676767676767676767676767676767676767
+    private boolean obstacleAhead;
+    private static final int OBSTACLE_CHECK_RANGE = 10;
+    private boolean hasObstacleAhead(int range) {
+        if (mc.player == null || mc.world == null) return false;
 
+        double dx = getTargetX() - mc.player.getX();
+        double dz = getTargetZ() - mc.player.getZ();
+
+        double distance = Math.sqrt(dx * dx + dz * dz);
+
+        if (distance < 0.001) return false;
+
+        double dirX = dx / distance;
+        double dirZ = dz / distance;
+
+        double startX = mc.player.getX();
+        double startZ = mc.player.getZ();
+        int y = mc.player.getBlockY();
+
+        for (int i = 1; i <= range; i++) {
+            double x = startX + dirX * i;
+            double z = startZ + dirZ * i;
+
+            BlockPos pos = BlockPos.ofFloored(x, y, z);
+
+            if (!mc.world.getBlockState(pos).isAir()) {
+                return true;
+            }
+        }
+
+        return false;
+    }
 
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onMove(TravelEvent event) {
-        
+
         if (mc.player == null || mc.world == null || event.isPost()) {
             return;
         }
         suppressMovementInput();
         if (!mc.player.isGliding() || !hasWorkingElytra()) return;
 
-        
+
+        if (obstacleAhead) {
+            stopMotion();
+            event.cancel();
+            return;
+        }
+
+
         int currentTargetX = getTargetX();
         int currentTargetZ = getTargetZ();
 
-        
+
         double deltaX = currentTargetX - mc.player.getX();
         double deltaZ = currentTargetZ - mc.player.getZ();
 
-        
+
         double distance2D = Math.sqrt(deltaX * deltaX + deltaZ * deltaZ);
 
         if (distance2D <= arrivalDistance2D.get()) {
@@ -375,7 +418,7 @@ public class ElytraFlyPath extends WaveXinModule {
             return;
         }
 
-        
+
         double flightSpeed = Math.min(currentFlightSpeed(), distance2D - arrivalDistance2D.get());
         mc.player.setVelocity(
             deltaX / distance2D * flightSpeed * 0.9800000190734863D,
@@ -383,14 +426,14 @@ public class ElytraFlyPath extends WaveXinModule {
             deltaZ / distance2D * flightSpeed * 0.9900000095367432D
         );
 
-        
+
         event.cancel();
         mc.player.move(MovementType.SELF, mc.player.getVelocity());
     }
 
-    
 
-    
+
+
 
 
     private void markArrived(TravelEvent event) {
@@ -423,7 +466,7 @@ public class ElytraFlyPath extends WaveXinModule {
     }
 
     private boolean hasWorkingElytra() {
-        
+
         return isUsableElytra(mc.player.getEquippedStack(EquipmentSlot.CHEST));
     }
 
@@ -484,7 +527,7 @@ public class ElytraFlyPath extends WaveXinModule {
         else WaveXinAddon.LOG.warn("Temporary flight waypoint cleanup failed: {}", result.detail());
     }
 
-    
+
 
 
 
@@ -499,46 +542,46 @@ public class ElytraFlyPath extends WaveXinModule {
 
         switch (dimensionName) {
             case "minecraft:the_nether":
-                
+
                 return playerY > 128;
             case "minecraft:overworld":
-                
+
                 return playerY > 320;
             case "minecraft:the_end":
-                
+
                 return playerY > 256;
             default:
                 return false;
         }
     }
 
-    
+
 
 
 
     public static boolean requestElytraGlide(ClientPlayerEntity player) {
         if (canStartElytraGlide(player) && beginGlidingIfSafe(player)) {
-            
+
             player.networkHandler.sendPacket(new ClientCommandC2SPacket(player, ClientCommandC2SPacket.Mode.START_FALL_FLYING));
             return true;
         }
         return false;
     }
 
-    
+
 
 
 
     public static boolean canStartElytraGlide(ClientPlayerEntity player) {
         ItemStack itemStack = player.getEquippedStack(EquipmentSlot.CHEST);
-        return (!player.getAbilities().flying &&    
-            !player.hasVehicle() &&                 
-            !player.isClimbing() &&                 
-            itemStack.isOf(Items.ELYTRA) &&         
-            isUsableElytra(itemStack));        
+        return (!player.getAbilities().flying &&
+            !player.hasVehicle() &&
+            !player.isClimbing() &&
+            itemStack.isOf(Items.ELYTRA) &&
+            isUsableElytra(itemStack));
     }
 
-    
+
 
 
 
@@ -546,7 +589,7 @@ public class ElytraFlyPath extends WaveXinModule {
         if (!player.isTouchingWater() && !player.hasStatusEffect(StatusEffects.LEVITATION)) {
             ItemStack itemStack = player.getEquippedStack(EquipmentSlot.CHEST);
             if (isUsableElytra(itemStack)) {
-                player.startGliding(); 
+                player.startGliding();
                 return true;
             }
         }
@@ -554,9 +597,9 @@ public class ElytraFlyPath extends WaveXinModule {
     }
 
 
-    
 
-    
+
+
 
 
     private static boolean isUsableElytra(ItemStack stack) {
